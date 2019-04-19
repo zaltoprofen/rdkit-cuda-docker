@@ -7,10 +7,14 @@ RUN apt-get update \
     && echo 'deb https://apt.repos.intel.com/mkl all main' > /etc/apt/sources.list.d/intel-mkl.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        cmake \
+        cmake gfortran \
         libcairo2-dev libeigen3-dev libssl-dev libffi-dev libsqlite3-dev \
+        intel-mkl.2019.3-062 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+ENV MKL_ROOT_DIR /opt/intel/mkl
+ENV LD_LIBRARY_PATH $MKL_ROOT_DIR/lib/intel64
 
 ARG N_PROC=2
 ARG PYTHON_VERSION=3.7.3
@@ -37,7 +41,10 @@ RUN mkdir -p /src/boost \
     && ./b2 install -j${N_PROC} --with-system --with-iostreams --with-python --with-serialization --user-config=user-config.jam \
     && cd / && rm -rf /src/boost
 
-RUN pip3 install numpy pillow six pandas
+ADD numpy-site.cfg /root/.numpy-site.cfg
+
+RUN pip3 install --no-binary :all: numpy scipy
+RUN pip3 install pillow six pandas
 
 ENV RDBASE /opt/rdkit
 ENV LD_LIBRARY_PATH $RDBASE/lib:$LD_LIBRARY_PATH
@@ -57,5 +64,6 @@ RUN mkdir -p /opt/rdkit \
         .. \
     && make -j${N_PROC} \
     && make install \
-    && ctest
+    && ctest \
+    && cd .. && rm -rf build
 
